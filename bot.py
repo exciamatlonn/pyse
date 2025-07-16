@@ -27,15 +27,13 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-# IP 주소 가져오기
+# 외부 IP 주소 가져오기
 def get_ip_address():
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception as e:
+        response = requests.get("https://api.ipify.org", timeout=5)
+        response.raise_for_status()
+        return response.text
+    except requests.exceptions.RequestException as e:
         print(f"{y}IP 주소 가져오기 실패: {str(e)}{w}")
         return "Unknown"
 
